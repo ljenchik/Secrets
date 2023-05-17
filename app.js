@@ -1,12 +1,17 @@
 //jshint esversion:6
 
+// To keep secure data
 require("dotenv").config();
 
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const encrypt = require("mongoose-encryption");
+//const encrypt = require("mongoose-encryption");
+//const md5 = require("md5");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
+
 const app = express();
 
 app.use(express.static("public"));
@@ -23,9 +28,8 @@ const loginsSchema = new mongoose.Schema({
   password: String,
 });
 
-
 // Environment variable is added  from .env file
-loginsSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ["password"] });
+//loginsSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ["password"] });
 
 const Login = new mongoose.model("Login", loginsSchema);
 
@@ -41,30 +45,38 @@ app.get("/register", function (req, res) {
   res.render("register");
 });
 
-app.post("/register", async function (req, res) {
-  const user = new Login({
-    email: req.body.username,
-    password: req.body.password,
-  });
-
-  //await Login.insertMany([user]);
-  await user
-    .save()
-    .then(res.render("secrets"))
-    .catch(function (err) {
-      res.send(err);
+app.post("/register", function (req, res) {
+  bcrypt.hash(req.body.password, saltRounds, async function (err, hash) {
+    const user = new Login({
+      email: req.body.username,
+      //password: md5(req.body.password)
+      password: hash,
     });
+
+    await user
+      .save()
+      .then(res.render("secrets"))
+      .catch(function (err) {
+        res.send(err);
+      });
+  });
 });
 
 app.post("/login", async function (req, res) {
   const username = req.body.username;
-  const password = req.body.password;
+  // Hash password when user logs in
+  //const password = md5(req.body.password);
+   const password = req.body.password;
+
   await Login.findOne({ email: username }).then(function (user) {
-    if (user.password === password) {
-      res.render("secrets");
-    } else {
-      res.send("Username and/or password are incorrect!");
-    }
+    bcrypt.compare(password, user.password, function (err, result) {
+      if (result === true) {
+        res.render('secrets');
+      }
+      else {
+        res.send("Username and/or password are incorrect!");
+      }
+    });
   });
 });
 
