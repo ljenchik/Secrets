@@ -90,7 +90,6 @@ passport.use(
       userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
     },
     function (accessToken, refreshToken, profile, cb) {
-      console.log(profile);
       Login.findOrCreate({ googleId: profile.id }, function (err, user) {
         return cb(err, user);
       });
@@ -106,7 +105,6 @@ passport.use(
       callbackURL: "http://localhost:3000/auth/github/secrets",
     },
     function (accessToken, refreshToken, profile, done) {
-      console.log(profile);
       Login.findOrCreate({ googleId: profile.id }, function (err, user) {
         return cb(err, user);
       });
@@ -256,8 +254,6 @@ app.get("/submit", function (req, res) {
 });
 
 app.post("/submit", async function (req, res) {
-  console.log(req.user);
-  console.log(req.body);
   Login.findById(req.user)
     .then(function (user) {
       if (user) {
