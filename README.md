@@ -27,10 +27,10 @@ From command line
 This project is based on the guidance and steps provided by Angela Yu's Udemy <a href="https://www.udemy.com/course/the-complete-web-development-bootcamp/learn/lecture/18125215#questions/18744410"> 
 "The Complete 2023 Web Development Bootcamp"</a>. However, I have enhanced its functionality by allowing a user to submit multiple secrets.
 
-<img src="https://github.com/ljenchik/Secrets/assets/84686704/2fdfe6d9-2d0a-417c-887b-2606da7f4da3" width="300px"/>
+<img src="https://github.com/ljenchik/Secrets/assets/84686704/0ad6547f-4f4f-47a7-a24b-68bced96b0bc" width="300px"/>
 
 <img src="https://github.com/ljenchik/Secrets/assets/84686704/20bfdb32-5049-4908-a962-b494957dfb05" width="300px"/>
 
-<img src="https://github.com/ljenchik/Secrets/assets/84686704/0ad6547f-4f4f-47a7-a24b-68bced96b0bc" width="300px"/>
+<img src="https://github.com/ljenchik/Secrets/assets/84686704/2fdfe6d9-2d0a-417c-887b-2606da7f4da3" width="300px"/>
 
 
