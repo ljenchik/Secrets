@@ -13,6 +13,12 @@ const session = require("express-session");
 const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
+var GitHubStrategy = require('passport-github2').Strategy;
+
+// To use findOrCreate() in mongoose
+const findOrCreate = require("mongoose-findorcreate");
+
 //const encrypt = require("mongoose-encryption");
 //const md5 = require("md5");
 //const bcrypt = require("bcrypt");
@@ -41,12 +47,16 @@ mongoose.connect("mongodb://localhost:27017/Secrets", {
 
 // Schema for creating a login data
 const loginsSchema = new mongoose.Schema({
-  username: String,
+  email: String,
   password: String,
+  googleId: String,
+  githubId: String,
+  secret: String
 });
 
 // Salt and hash password, store in db
 loginsSchema.plugin(passportLocalMongoose);
+loginsSchema.plugin(findOrCreate);
 
 // Environment variable is added  from .env file
 //loginsSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ["password"] });
@@ -56,20 +66,85 @@ const Login = mongoose.model("Login", loginsSchema);
 // To create local login strategy
 passport.use(Login.createStrategy());
 
-passport.serializeUser(Login.serializeUser());
-passport.deserializeUser(Login.deserializeUser());
+// passport.serializeUser(Login.serializeUser());
+// passport.deserializeUser(Login.deserializeUser());
 
-passport.serializeUser(function (user, done) {
-  done(null, user);
+passport.serializeUser(function(user, cb) {
+  process.nextTick(function() {
+    return cb(null, user);
+  });
 });
 
-passport.deserializeUser(function (user, done) {
-  done(null, user);
+passport.deserializeUser(function(user, cb) {
+  process.nextTick(function() {
+    return cb(null, user);
+  });
 });
+
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.CLIENT_ID,
+      clientSecret: process.env.CLIENT_SECRET,
+      callbackURL: "http://localhost:3000/auth/google/secrets",
+      userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+    },
+    function (accessToken, refreshToken, profile, cb) {
+      console.log(profile);
+      Login.findOrCreate({ googleId: profile.id }, function (err, user) {
+        return cb(err, user);
+      });
+    }
+  )
+);
+
+passport.use(new GitHubStrategy({
+  clientID: process.env.GITHUB_CLIENT_ID,
+  clientSecret: process.env.GITHUB_CLIENT_SECRET,
+  callbackURL: "http://localhost:3000/auth/github/secrets"
+},
+function(accessToken, refreshToken, profile, done) {
+  console.log(profile);
+      Login.findOrCreate({ googleId: profile.id }, function (err, user) {
+        return cb(err, user);
+  });
+}
+));
+
 
 app.get("/", function (req, res) {
   res.render("home");
 });
+
+app.get(
+  "/auth/google",
+  // Pop up to sign from google
+  passport.authenticate("google", { scope: ["profile"] })
+);
+
+app.get(
+  "/auth/google/secrets",
+  passport.authenticate("google", { failureRedirect: "/login" }),
+  function (req, res) {
+    // Successful authentication, redirect to secrets.
+    res.redirect("/secrets");
+  }
+);
+
+app.get(
+  "/auth/github",
+  // Pop up to sign from google
+  passport.authenticate("google", { scope: ["profile"] })
+);
+
+app.get(
+  "/auth/github/secrets",
+  passport.authenticate("google", { failureRedirect: "/login" }),
+  function (req, res) {
+    // Successful authentication, redirect to secrets.
+    res.redirect("/secrets");
+  }
+);
 
 app.get("/login", function (req, res) {
   res.render("login");
@@ -80,11 +155,16 @@ app.get("/register", function (req, res) {
 });
 
 app.get("/secrets", function (req, res) {
-  if (req.isAuthenticated()) {
-    res.render("secrets");
-  } else {
-    res.redirect("/login");
-  }
+  // Look through DB for secret not null
+  Login.find({"secret": {$ne:null}})
+  .then(function(foundSecrets) {
+    if(foundSecrets) {
+      res.render("secrets", {secrets: foundSecrets})
+    }
+  })
+  .catch(function(err) {
+    console.log(err)
+  });
 });
 
 app.get("/logout", function (req, res) {
@@ -164,6 +244,25 @@ app.post("/login", async function (req, res) {
   //   });
   // });
 });
+
+app.get("/submit", function(req, res) {
+  if (req.isAuthenticated()) {
+    res.render("submit");
+  } else {
+    res.redirect("/login");
+  }
+});
+
+
+app.post("/submit", async function(req, res) {
+  const submittedSecret = req.body.secret;
+  Login.findByIdAndUpdate(req.user, {secret: submittedSecret})
+  .then(res.redirect("/secrets"))
+  .catch(function(err) {
+    console.log(err);
+  })
+});
+
 
 app.listen(3000, function () {
   console.log("Server started on port 3000");
