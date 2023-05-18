@@ -14,7 +14,7 @@ const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-var GitHubStrategy = require('passport-github2').Strategy;
+var GitHubStrategy = require("passport-github2").Strategy;
 
 // To use findOrCreate() in mongoose
 const findOrCreate = require("mongoose-findorcreate");
@@ -45,13 +45,13 @@ mongoose.connect("mongodb://localhost:27017/Secrets", {
   useNewUrlParser: true,
 });
 
-// Schema for creating a login data
+// Schema for login data
 const loginsSchema = new mongoose.Schema({
   email: String,
   password: String,
   googleId: String,
   githubId: String,
-  secret: String
+  secret: [String],
 });
 
 // Salt and hash password, store in db
@@ -69,14 +69,14 @@ passport.use(Login.createStrategy());
 // passport.serializeUser(Login.serializeUser());
 // passport.deserializeUser(Login.deserializeUser());
 
-passport.serializeUser(function(user, cb) {
-  process.nextTick(function() {
+passport.serializeUser(function (user, cb) {
+  process.nextTick(function () {
     return cb(null, user);
   });
 });
 
-passport.deserializeUser(function(user, cb) {
-  process.nextTick(function() {
+passport.deserializeUser(function (user, cb) {
+  process.nextTick(function () {
     return cb(null, user);
   });
 });
@@ -98,19 +98,21 @@ passport.use(
   )
 );
 
-passport.use(new GitHubStrategy({
-  clientID: process.env.GITHUB_CLIENT_ID,
-  clientSecret: process.env.GITHUB_CLIENT_SECRET,
-  callbackURL: "http://localhost:3000/auth/github/secrets"
-},
-function(accessToken, refreshToken, profile, done) {
-  console.log(profile);
+passport.use(
+  new GitHubStrategy(
+    {
+      clientID: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      callbackURL: "http://localhost:3000/auth/github/secrets",
+    },
+    function (accessToken, refreshToken, profile, done) {
+      console.log(profile);
       Login.findOrCreate({ googleId: profile.id }, function (err, user) {
         return cb(err, user);
-  });
-}
-));
-
+      });
+    }
+  )
+);
 
 app.get("/", function (req, res) {
   res.render("home");
@@ -156,15 +158,15 @@ app.get("/register", function (req, res) {
 
 app.get("/secrets", function (req, res) {
   // Look through DB for secret not null
-  Login.find({"secret": {$ne:null}})
-  .then(function(foundSecrets) {
-    if(foundSecrets) {
-      res.render("secrets", {secrets: foundSecrets})
-    }
-  })
-  .catch(function(err) {
-    console.log(err)
-  });
+  Login.find({ secret: { $ne: [] } })
+    .then(function (foundSecrets) {
+      if (foundSecrets) {
+        res.render("secrets", { secrets: foundSecrets });
+      }
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
 });
 
 app.get("/logout", function (req, res) {
@@ -245,7 +247,7 @@ app.post("/login", async function (req, res) {
   // });
 });
 
-app.get("/submit", function(req, res) {
+app.get("/submit", function (req, res) {
   if (req.isAuthenticated()) {
     res.render("submit");
   } else {
@@ -253,16 +255,21 @@ app.get("/submit", function(req, res) {
   }
 });
 
-
-app.post("/submit", async function(req, res) {
-  const submittedSecret = req.body.secret;
-  Login.findByIdAndUpdate(req.user, {secret: submittedSecret})
-  .then(res.redirect("/secrets"))
-  .catch(function(err) {
-    console.log(err);
-  })
+app.post("/submit", async function (req, res) {
+  console.log(req.user);
+  console.log(req.body);
+  Login.findById(req.user)
+    .then(function (user) {
+      if (user) {
+        user.secret.push(req.body.secret);
+        user.save();
+        res.redirect("/secrets");
+      }
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
 });
-
 
 app.listen(3000, function () {
   console.log("Server started on port 3000");
